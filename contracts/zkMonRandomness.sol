@@ -5,9 +5,9 @@ import "@openzeppelin/contracts/access/AccessControl.sol";
 import "@chainlink/contracts/src/v0.8/interfaces/VRFCoordinatorV2Interface.sol";
 import "@chainlink/contracts/src/v0.8/VRFConsumerBaseV2.sol";
 import "@chainlink/contracts/src/v0.8/ConfirmedOwner.sol";
-import "./interfaces/IZKMonRandomness.sol";
+import "./interfaces/IzkMonRandomness.sol";
 
-contract zkMonRandomness is AccessControl, VRFConsumerBaseV2, ConfirmedOwner, IZKMonRandomness {
+contract zkMonRandomness is AccessControl, VRFConsumerBaseV2, ConfirmedOwner, IzkMonRandomness {
     bytes32 public constant REVEALER_ROLE = keccak256("REVEALER_ROLE");
 
     VRFCoordinatorV2Interface public vrfCoordinator;

@@ -5,10 +5,10 @@ import "@openzeppelin/contracts-upgradeable/utils/Base64Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/StringsUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-import "./interfaces/IZKMonRandomness.sol";
-import "./interfaces/IZKMonMetadata.sol";
+import "./interfaces/IzkMonRandomness.sol";
+import "./interfaces/IzkMonMetadata.sol";
 
-contract zkMonMetaDataSetGenesis is Initializable, OwnableUpgradeable, IZKMonMetadata {
+contract zkMonMetadata is Initializable, OwnableUpgradeable, IzkMonMetadata {
     using StringsUpgradeable for uint256;
 
     enum MonsterType {
@@ -24,26 +24,36 @@ contract zkMonMetaDataSetGenesis is Initializable, OwnableUpgradeable, IZKMonMet
     }
 
     struct Monster {
-        uint256 availableCount;
+        uint256 supply;
+        string name;
         string baseURI;
     }
 
-    IZKMonRandomness public randomness;
+    /// @dev contract that fetches random number from chainlink for reveal
+    IzkMonRandomness public randomness;
 
+    /// @dev generic description for the whole contract
     string public description;
+
+    /// @dev chainlink requestId for reveal
     uint256 public revealRequestId;
+
+    /// @dev URI for unrevealed tokens
     string public unrevealedImageURI;
 
+    /// @dev mapping of monster type to monster data
     mapping (MonsterType => Monster) public monsters;
 
     event Reveal(uint256 indexed requestId);
 
     /// @custom:oz-upgrades-unsafe-allow constructor
-    constructor() {
-        _disableInitializers();
+    constructor(bool test) {
+        if (!test) {
+            _disableInitializers();
+        }
     }
 
-    function initialize(IZKMonRandomness _randomness, string memory _unrevealedImageURI, string memory _description) initializer public {
+    function initialize(IzkMonRandomness _randomness, string memory _unrevealedImageURI, string memory _description) initializer public {
         __Ownable_init();
 
         randomness = _randomness;
@@ -57,8 +67,13 @@ contract zkMonMetaDataSetGenesis is Initializable, OwnableUpgradeable, IZKMonMet
         emit Reveal(revealRequestId);
     }
 
-    function setMonster(MonsterType _monType, uint256 _availableCount, string memory _baseURI) public onlyOwner {
-        monsters[_monType] = Monster(_availableCount, _baseURI);
+    function setMonster(
+        MonsterType _monType,
+        uint256 _supply,
+        string memory name,
+        string memory _baseURI
+    ) public onlyOwner {
+        monsters[_monType] = Monster(_supply, name, _baseURI);
     }
 
     function setUnrevealedImageURI(string memory _unrevealedImageURI) public onlyOwner {
@@ -76,7 +91,7 @@ contract zkMonMetaDataSetGenesis is Initializable, OwnableUpgradeable, IZKMonMet
             )
         );
 
-        string memory setMetaData = ',"attributes":[{"trait_type":"Set","value":"Genesis"}]';
+        string memory attributes = ',"attributes":[{"trait_type":"Set","value":"Genesis"}';
 
         if (revealRequestId == 0) {
             return string(
@@ -89,7 +104,8 @@ contract zkMonMetaDataSetGenesis is Initializable, OwnableUpgradeable, IZKMonMet
                                     baseMetaData,
                                     '","image":"',
                                     unrevealedImageURI,
-                                    setMetaData
+                                    attributes,
+                                    ']}'
                                 )
                             )
                         )
@@ -98,7 +114,37 @@ contract zkMonMetaDataSetGenesis is Initializable, OwnableUpgradeable, IZKMonMet
             );
         }
 
-        return "";
+        Monster memory monster = monsters[getMonsterType(tokenId)];
+        string memory additionalAttributes = string(
+            abi.encodePacked(
+                '{"trait_type":"Creature","value":"',
+                monster.name,
+                '"}'
+            )
+        );
+
+        return string(
+            abi.encodePacked(
+                "data:application/json;base64,",
+                Base64Upgradeable.encode(
+                    bytes(
+                        string(
+                            abi.encodePacked(
+                                baseMetaData,
+                                '"image":"',
+                                monster.baseURI,
+                                '/',
+                                getMonsterImageIndex(tokenId, monster.supply).toString(),
+                                '.png"',
+                                attributes,
+                                additionalAttributes,
+                                ']}'
+                            )
+                        )
+                    )
+                )
+            )
+        );
     }
 
     function getMonsterImageIndex(uint256 tokenId, uint256 availableCount) public view returns (uint256) {
@@ -118,7 +164,7 @@ contract zkMonMetaDataSetGenesis is Initializable, OwnableUpgradeable, IZKMonMet
         require(revealRequestId != 0, "zkMonMetaDataSet1: Not revealed yet");
 
         // Get the revealed random number
-        uint256 revealNumber = randomness.getNumber(revealRequestId);
+        uint256 revealNumber = randomness.requests(revealRequestId);
 
         // Compute a deterministic pseudo-random number based on the tokenId and the revealed number
         uint randomNumber = uint(keccak256(abi.encodePacked(revealNumber, tokenId))) % 9;

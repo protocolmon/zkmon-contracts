@@ -11,7 +11,9 @@
   "devDependencies": {
     "@nomicfoundation/hardhat-toolbox": "^3.0.0",
     "erc721a-upgradeable": "^4.2.3",
-    "hardhat": "^2.15.0"
+    "hardhat": "^2.16.1",
+    "ts-node": "^10.9.1",
+    "typescript": "^5.1.6"
   },
   "dependencies": {
     "@chainlink/contracts": "^0.6.1",
