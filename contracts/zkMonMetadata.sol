@@ -16,7 +16,7 @@ contract zkMonMetadata is Initializable, OwnableUpgradeable, IzkMonMetadata {
         Cheetah,
         Dragon,
         Ghost,
-        MainCoon,
+        MaineCoon,
         Owl,
         Pangolin,
         Pomeranian,
@@ -62,7 +62,7 @@ contract zkMonMetadata is Initializable, OwnableUpgradeable, IzkMonMetadata {
     }
 
     function reveal() public onlyOwner {
-        require(revealRequestId != 0, "zkMonMetaDataSet1: Already revealed");
+        require(revealRequestId == 0, "zkMonMetaData: Already revealed");
         revealRequestId = randomness.reveal();
         emit Reveal(revealRequestId);
     }
@@ -91,7 +91,7 @@ contract zkMonMetadata is Initializable, OwnableUpgradeable, IzkMonMetadata {
             )
         );
 
-        if (revealRequestId == 0) {
+        if (revealRequestId == 0 || randomness.requests(revealRequestId) == 0) {
             return string(
                 abi.encodePacked(
                     "data:application/json;base64,",
