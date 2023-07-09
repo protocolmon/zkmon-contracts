@@ -91,8 +91,6 @@ contract zkMonMetadata is Initializable, OwnableUpgradeable, IzkMonMetadata {
             )
         );
 
-        string memory attributes = ',"attributes":[{"trait_type":"Set","value":"Genesis"}';
-
         if (revealRequestId == 0) {
             return string(
                 abi.encodePacked(
@@ -102,10 +100,9 @@ contract zkMonMetadata is Initializable, OwnableUpgradeable, IzkMonMetadata {
                             string(
                                 abi.encodePacked(
                                     baseMetaData,
-                                    '","image":"',
+                                    '"image":"',
                                     unrevealedImageURI,
-                                    attributes,
-                                    ']}'
+                                    '"}'
                                 )
                             )
                         )
@@ -115,7 +112,7 @@ contract zkMonMetadata is Initializable, OwnableUpgradeable, IzkMonMetadata {
         }
 
         Monster memory monster = monsters[getMonsterType(tokenId)];
-        string memory additionalAttributes = string(
+        string memory attributes = string(
             abi.encodePacked(
                 '{"trait_type":"Creature","value":"',
                 monster.name,
@@ -135,9 +132,8 @@ contract zkMonMetadata is Initializable, OwnableUpgradeable, IzkMonMetadata {
                                 monster.baseURI,
                                 '/',
                                 getMonsterImageIndex(tokenId, monster.supply).toString(),
-                                '.png"',
+                                '.png",',
                                 attributes,
-                                additionalAttributes,
                                 ']}'
                             )
                         )
