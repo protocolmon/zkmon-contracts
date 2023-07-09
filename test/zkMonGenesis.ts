@@ -88,6 +88,7 @@ describe("zkMon", function () {
 
       // mint the remainimg 998
       for (let i = 0; i < 998; i++) {
+        console.info(`Minting no ${i}...`);
         await zkMonFromOther.mint({ value: ethers.parseEther("0.1") });
       }
 
@@ -98,6 +99,18 @@ describe("zkMon", function () {
       await zkMonMetadata.reveal();
       // but not again
       await expect(zkMonMetadata.reveal()).to.be.revertedWith("zkMonMetaData: Already revealed");
+
+      // iterate through all the tokens and check the URIs
+      for (let i = 0; i < 1000; i++) {
+        let tokenURI = await zkMon.tokenURI(i);
+        [contentType, base64Part] = tokenURI.split(',');
+        expect(contentType).to.equal('data:application/json;base64');
+        let tokenURIBuffer = Buffer.from(base64Part, 'base64');
+        let tokenURIString = tokenURIBuffer.toString('utf-8');
+        let tokenURIObject = JSON.parse(tokenURIString);
+        console.info(`Verifying token URI for token ${i}: ${tokenURIObject.name}...`);
+        expect(tokenURIObject.name).to.equal('zkMon #' + i);
+      }
     });
 
     it("should not allow minting more than max supply", async function () {

@@ -114,9 +114,9 @@ contract zkMonMetadata is Initializable, OwnableUpgradeable, IzkMonMetadata {
         Monster memory monster = monsters[getMonsterType(tokenId)];
         string memory attributes = string(
             abi.encodePacked(
-                '{"trait_type":"Creature","value":"',
+                '"attributes":[{"trait_type":"Creature","value":"',
                 monster.name,
-                '"}'
+                '"}]'
             )
         );
 
@@ -134,7 +134,7 @@ contract zkMonMetadata is Initializable, OwnableUpgradeable, IzkMonMetadata {
                                 getMonsterImageIndex(tokenId, monster.supply).toString(),
                                 '.png",',
                                 attributes,
-                                ']}'
+                                '}'
                             )
                         )
                     )
