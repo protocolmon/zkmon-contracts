@@ -18,10 +18,8 @@ contract zkMon is Initializable, ERC721Upgradeable, ERC721EnumerableUpgradeable,
     IzkMonMetadata public meta;
 
     /// @custom:oz-upgrades-unsafe-allow constructor
-    constructor(bool test) {
-        if (!test) {
-            _disableInitializers();
-        }
+    constructor() {
+        _disableInitializers();
     }
 
     function initialize() initializer public {

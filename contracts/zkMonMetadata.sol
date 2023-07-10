@@ -47,10 +47,8 @@ contract zkMonMetadata is Initializable, OwnableUpgradeable, IzkMonMetadata {
     event Reveal(uint256 indexed requestId);
 
     /// @custom:oz-upgrades-unsafe-allow constructor
-    constructor(bool test) {
-        if (!test) {
-            _disableInitializers();
-        }
+    constructor() {
+        _disableInitializers();
     }
 
     function initialize(IzkMonRandomness _randomness, string memory _unrevealedImageURI, string memory _description) initializer public {
@@ -111,7 +109,9 @@ contract zkMonMetadata is Initializable, OwnableUpgradeable, IzkMonMetadata {
             );
         }
 
-        Monster memory monster = monsters[getMonsterType(tokenId)];
+        uint256 seed = randomness.requests(revealRequestId);
+
+        Monster memory monster = monsters[getMonsterType(seed, tokenId)];
         string memory attributes = string(
             abi.encodePacked(
                 '"attributes":[{"trait_type":"Creature","value":"',
@@ -119,6 +119,9 @@ contract zkMonMetadata is Initializable, OwnableUpgradeable, IzkMonMetadata {
                 '"}]'
             )
         );
+
+        uint256 imageShift = seed % monster.supply;
+        uint256 imageIndex = tokenId + imageShift;
 
         return string(
             abi.encodePacked(
@@ -130,8 +133,8 @@ contract zkMonMetadata is Initializable, OwnableUpgradeable, IzkMonMetadata {
                                 baseMetaData,
                                 '"image":"',
                                 monster.baseURI,
-                                '/',
-                                getMonsterImageIndex(tokenId, monster.supply).toString(),
+                                '/img_',
+                                imageIndex.toString(),
                                 '.png",',
                                 attributes,
                                 '}'
@@ -143,28 +146,48 @@ contract zkMonMetadata is Initializable, OwnableUpgradeable, IzkMonMetadata {
         );
     }
 
-    function getMonsterImageIndex(uint256 tokenId, uint256 availableCount) public view returns (uint256) {
-        require(revealRequestId != 0, "zkMonMetaDataSet1: Not revealed yet");
+    function getMonsterType(uint256 seed, uint256 tokenId) public view returns (MonsterType) {
+        require(revealRequestId != 0, "zkMonMetadata: Not revealed yet");
+
+        // Create the array of all monsters
+        MonsterType[] memory allMonsterTypes = createMonsters(seed);
 
         // Get the revealed random number
-        uint256 revealNumber = randomness.requests(revealRequestId);
-        require(revealNumber != 0, "zkMonMetaDataSet1: Reveal not found");
+        uint256 revealNumber = randomness.requests(revealRequestId) % allMonsterTypes.length;
 
-        // Compute a deterministic pseudo-random number based on the tokenId, the revealed number, and the available count
-        uint randomNumber = uint(keccak256(abi.encodePacked(revealNumber, tokenId))) % availableCount;
+        // Use the reveal number as an offset
+        uint256 index = tokenId + revealNumber;
+        if (index > allMonsterTypes.length - 1) {
+            index = index % allMonsterTypes.length;
+        }
 
-        return randomNumber;
+        // Return the selected monster
+        return allMonsterTypes[index];
     }
 
-    function getMonsterType(uint256 tokenId) public view returns (MonsterType) {
-        require(revealRequestId != 0, "zkMonMetaDataSet1: Not revealed yet");
+    function createMonsters(uint256 seed) public view returns(MonsterType[] memory) {
+        MonsterType[] memory monsterTypeArray = new MonsterType[](1000);
+        uint256 index = 0;
 
-        // Get the revealed random number
-        uint256 revealNumber = randomness.requests(revealRequestId);
+        for(uint8 i = 0; i < 9; i++) {
+            MonsterType currentMonsterType = MonsterType(i);
+            Monster memory currentMonster = monsters[currentMonsterType];
+            for(uint256 j = 0; j < currentMonster.supply; j++) {
+                monsterTypeArray[index] = MonsterType(i);
+                index++;
+            }
+        }
 
-        // Compute a deterministic pseudo-random number based on the tokenId and the revealed number
-        uint randomNumber = uint(keccak256(abi.encodePacked(revealNumber, tokenId))) % 9;
+        return shuffle(monsterTypeArray, seed);
+    }
 
-        return MonsterType(randomNumber);
+    function shuffle(MonsterType[] memory array, uint256 seed) internal pure returns(MonsterType[] memory) {
+        for (uint i = 0; i < array.length; i++) {
+            uint256 n = i + uint256(keccak256(abi.encodePacked(seed))) % (array.length - i);
+            MonsterType temp = array[n];
+            array[n] = array[i];
+            array[i] = temp;
+        }
+        return array;
     }
 }
