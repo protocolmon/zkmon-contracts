@@ -1,9 +1,15 @@
 import { ethers } from 'hardhat'
+// @ts-ignore
+import { poseidonContract } from "circomlibjs";
+
 import * as fs from 'fs'
 
 async function deploy() {
     let owner = await ethers.getSigner("");
     var tx_params = {gasLimit: 7e7};
+
+    var poseidon_factory = new ethers.ContractFactory(poseidonContract.generateABI(2), poseidonContract.createCode(2));
+    var poseidon = await poseidon_factory.connect(owner).deploy(tx_params);
 
     var verifier_raw = fs.readFileSync("./proof_dir/verifier_contract_bytecode");
     var verifier_hex = verifier_raw.reduce((output, elem) => (output + ('0' + elem.toString(16)).slice(-2)), '');
