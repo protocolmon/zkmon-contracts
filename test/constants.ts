@@ -2,6 +2,8 @@ export const DESCRIPTION = "TBD - Description to be defined";
 export const UNREVEALED_IMAGE_URI =
   "https://drive.polychainmonsters.com/ipfs/QmUVahrtmwSMGGx3fPaAs5eR5gHDqmM7K3Qd8F3jEW8pDd";
 
+export const MAX_SUPPLY = 1000;
+
 export const ZK_MON_TYPE_APE = 0;
 export const ZK_MON_TYPE_CHEETAH = 1;
 export const ZK_MON_TYPE_DRAGON = 2;

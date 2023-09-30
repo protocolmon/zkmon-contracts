@@ -133,9 +133,8 @@ contract zkMonMetadata is Initializable, OwnableUpgradeable, IzkMonMetadata {
                                 baseMetaData,
                                 '"image":"',
                                 monster.baseURI,
-                                '/img_',
                                 imageIndex.toString(),
-                                '.png",',
+                                '.webp",',
                                 attributes,
                                 '}'
                             )
@@ -165,16 +164,27 @@ contract zkMonMetadata is Initializable, OwnableUpgradeable, IzkMonMetadata {
         return allMonsterTypes[index];
     }
 
+    /// @dev This is not efficient but it works because we only have 1k items and this is only used for reading the token URI.
+    //       This way of assigning the monster type allows us to have the type on-chain and still link every item to a
+    //       unique image after an on-chain seed based reveal.
     function createMonsters(uint256 seed) public view returns(MonsterType[] memory) {
         MonsterType[] memory monsterTypeArray = new MonsterType[](1000);
         uint256 index = 0;
 
-        for(uint8 i = 0; i < 9; i++) {
+        for(uint8 i = 0; i < 9;) {
             MonsterType currentMonsterType = MonsterType(i);
             Monster memory currentMonster = monsters[currentMonsterType];
-            for(uint256 j = 0; j < currentMonster.supply; j++) {
+            for(uint256 j = 0; j < currentMonster.supply;) {
                 monsterTypeArray[index] = MonsterType(i);
+
+                unchecked {
                 index++;
+                    j++;
+                }
+            }
+
+            unchecked {
+                i++;
             }
         }
 
@@ -182,11 +192,15 @@ contract zkMonMetadata is Initializable, OwnableUpgradeable, IzkMonMetadata {
     }
 
     function shuffle(MonsterType[] memory array, uint256 seed) internal pure returns(MonsterType[] memory) {
-        for (uint i = 0; i < array.length; i++) {
-            uint256 n = i + uint256(keccak256(abi.encodePacked(seed))) % (array.length - i);
+        uint256 arrayLen = array.length;
+        for (uint i = 0; i < arrayLen;) {
+            uint256 n = i + seed % (arrayLen - i);
             MonsterType temp = array[n];
             array[n] = array[i];
             array[i] = temp;
+            unchecked {
+                i++;
+            }
         }
         return array;
     }

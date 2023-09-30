@@ -1,22 +1,58 @@
 import { ethers } from "hardhat";
+import { poseidonContract } from "circomlibjs";
+import fs from "fs";
 
 async function main() {
-  const currentTimestampInSeconds = Math.round(Date.now() / 1000);
-  const unlockTime = currentTimestampInSeconds + 60;
-
-  const lockedAmount = ethers.parseEther("0.001");
-
-  const lock = await ethers.deployContract("Lock", [unlockTime], {
-    value: lockedAmount,
-  });
-
-  await lock.waitForDeployment();
-
-  console.log(
-    `Lock with ${ethers.formatEther(
-      lockedAmount,
-    )}ETH and unlock timestamp ${unlockTime} deployed to ${lock.target}`,
+  const [signer] = await ethers.getSigners();
+  const PoseidonFactory = new ethers.ContractFactory(
+    poseidonContract.generateABI(2),
+    poseidonContract.createCode(2),
+    signer,
   );
+  // console.log("poseidonFactory", PoseidonFactory);
+  const poseidon = await PoseidonFactory.deploy();
+  console.log(await poseidon.getAddress());
+
+  const verifierRaw = fs.readFileSync("./proof_dir/verifier_contract_bytecode");
+  const verifierHex = verifierRaw.reduce(
+    (output, elem) => output + ("0" + elem.toString(16)).slice(-2),
+    "",
+  );
+
+  const verifierFactory = new ethers.ContractFactory([], verifierHex, signer);
+  const verifier = await verifierFactory.deploy();
+  console.log(await verifier.getAddress());
+
+  const zkMonValidatorFactory = await ethers.getContractFactory(
+    "zkMonValidator",
+  );
+  const zkMonValidator = await zkMonValidatorFactory.deploy(
+    await verifier.getAddress(),
+    await poseidon.getAddress(),
+  );
+  console.log(await zkMonValidator.getAddress());
+
+  const proofRaw = fs.readFileSync("./proof_dir/proof");
+  const proofHex =
+    "0x" +
+    proofRaw.reduce(
+      (output, elem) => output + ("0" + elem.toString(16)).slice(-2),
+      "",
+    );
+
+  const instanceRaw = fs.readFileSync("./proof_dir/limbs_instance");
+  const instanceHex =
+    "0x" +
+    instanceRaw.reduce(
+      (output, elem) => output + ("0" + elem.toString(16)).slice(-2),
+      "",
+    );
+
+  const merkleRoot = ethers.toBigInt(
+    "0x1953ed8741d64c75595aec3373701ac79a4e21f40e211e62052c29bcc45df528",
+  );
+
+  await zkMonValidator.verify(proofHex, instanceHex, merkleRoot);
 }
 
 // We recommend this pattern to be able to use async/await everywhere

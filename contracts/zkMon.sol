@@ -8,6 +8,13 @@ import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/CountersUpgradeable.sol";
 import "./interfaces/IzkMonMetadata.sol";
 
+interface Hasher {
+    function poseidon(uint256[2] calldata leftRight)
+    external
+    pure
+    returns (uint256);
+}
+
 contract zkMon is Initializable, ERC721Upgradeable, ERC721EnumerableUpgradeable, OwnableUpgradeable {
     using CountersUpgradeable for CountersUpgradeable.Counter;
 
@@ -17,16 +24,51 @@ contract zkMon is Initializable, ERC721Upgradeable, ERC721EnumerableUpgradeable,
     uint256 public maxSupply;
     IzkMonMetadata public meta;
 
+    /// @dev ZK related stuff
+    address public verifierContract;
+    Hasher public poseidonContract;
+    uint256 public merkleRoot;
+
+    event MerkleRootVerified(uint256 indexed merkleRoot);
+
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
         _disableInitializers();
     }
 
-    function initialize() initializer public {
+    function initialize(address _verifierContract, Hasher _poseidonContract) initializer public {
         __ERC721_init("zkMon", "ZKMON");
         __ERC721Enumerable_init();
         __Ownable_init();
     }
+
+    /****************************
+     * ZK *
+     ***************************/
+
+    /// @dev Main proof verification
+    function verify(bytes calldata proof, bytes calldata instances, uint256 claimedMerkleRoot) public {
+        (bool success, ) = verifierContract.call(abi.encodePacked(instances, claimedMerkleRoot, proof));
+        require(success, "zkMonValidator: Proof did not verify!");
+
+        merkleRoot = claimedMerkleRoot;
+        emit MerkleRootVerified(merkleRoot);
+    }
+
+    /// @dev View function to verify merkle path of single NFTs
+    function verifyMerklePath(uint256[] calldata path, uint256 input_hash, uint256 output_hash) public view returns (bool) {
+        uint256 current = poseidonContract.poseidon([input_hash, output_hash]);
+
+        for (uint8 i = 0; i < path.length; i++) {
+            current = poseidonContract.poseidon([current, path[i]]);
+        }
+
+        return current == merkleRoot;
+    }
+
+    /****************************
+     * MINTING *
+     ***************************/
 
     function mint() public payable {
         require(totalSupply() < maxSupply, "Max supply reached");
@@ -45,7 +87,9 @@ contract zkMon is Initializable, ERC721Upgradeable, ERC721EnumerableUpgradeable,
         _safeMint(to, tokenId);
     }
 
-    // Owner functions
+    /****************************
+     * OWNER FUNCTIONS *
+     ***************************/
 
     function setMintPrice(uint256 _mintPrice) public onlyOwner {
         mintPrice = _mintPrice;
@@ -59,7 +103,9 @@ contract zkMon is Initializable, ERC721Upgradeable, ERC721EnumerableUpgradeable,
         meta = IzkMonMetadata(_meta);
     }
 
-    // The following functions are overrides required by Solidity.
+    /****************************
+     * OVERRIDES *
+     ***************************/
 
     function _beforeTokenTransfer(address from, address to, uint256 tokenId, uint256 batchSize)
     internal
@@ -77,7 +123,9 @@ contract zkMon is Initializable, ERC721Upgradeable, ERC721EnumerableUpgradeable,
         return super.supportsInterface(interfaceId);
     }
 
-    // For metadata
+    /****************************
+     * METADATA FORMATTING *
+     ***************************/
 
     function tokenURI(uint256 tokenId) public view override(ERC721Upgradeable) returns (string memory) {
         require(_exists(tokenId), "zkMon: URI query for nonexistent token");
